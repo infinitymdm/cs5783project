@@ -1,0 +1,3 @@
+[submodule "model-soups"]
+	path = model-soups
+	url = https://github.com/mlfoundations/model-soups

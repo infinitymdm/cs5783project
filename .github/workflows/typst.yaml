@@ -1,0 +1,16 @@
+# Build typst documents
+name: Compile Typst Documents
+on: push
+jobs:
+    compile-papers:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: typst-community/setup-typst@v3
+              with:
+                typst-version: 0.11.1 # Use 0.11.1 until problemst is updated
+            - run: for typfile in `find . -name "*.typ"`; do typst compile $typfile; done;
+            - uses: actions/upload-artifact@v4
+              with:
+                name: compiled
+                path: 'ieee/main.pdf'

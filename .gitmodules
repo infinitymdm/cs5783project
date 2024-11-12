@@ -1,3 +1,6 @@
 [submodule "model-soups"]
 	path = model-soups
 	url = https://github.com/mlfoundations/model-soups
+[submodule "latent-diffusion"]
+	path = latent-diffusion
+	url = https://github.com/CompVis/latent-diffusion

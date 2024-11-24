@@ -1,12 +1,12 @@
 model:
-  base_learning_rate: 0.0001
+  base_learning_rate: 1e-3
   target: ldm.models.diffusion.ddpm.LatentDiffusion
   params:
     linear_start: 0.0015
     linear_end: 0.0195
     num_timesteps_cond: 1
-    log_every_t: 2000
-    timesteps: 50 #1000
+    log_every_t: 50
+    timesteps: 100 #1000
     first_stage_key: image
     cond_stage_key: class_label
     image_size: 64
@@ -49,7 +49,7 @@ model:
           resolution: 256
           in_channels: 3
           out_ch: 3
-          ch: 32 #128
+          ch: 64 #128
           ch_mult:
           - 1
           - 2
@@ -70,7 +70,7 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 13
+    batch_size: 14
     num_workers: 12
     wrap: false
     train:
@@ -91,9 +91,9 @@ lightning:
       target: main.ImageLogger
       params:
         batch_frequency: 5000
-        max_images: 8
+        max_images: 2
         increase_log_steps: False
 
   trainer:
-    benchmark: True
-    max_epochs: 2
+    benchmark: False
+    max_epochs: 1

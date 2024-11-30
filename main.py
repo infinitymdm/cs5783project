@@ -18,6 +18,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+import shutil
+
 #from ..."model-soups" import utils as msutils
 
 import importlib
@@ -88,7 +90,7 @@ def parse_arguments():
         "-r",
         "--results",
         type=str,
-        default=os.path.relpath('results/'),
+        default=os.path.relpath('./results'),
         help="Directory for storing intermediate greedy soup results",
     )
 
@@ -108,7 +110,15 @@ def get_model_paths(models_dir):
     return [Path(c) for c in models_dir.glob('**/*.ckpt')]
 
 def get_eval_paths(eval_dir):
-    return [Path(c) for c in eval_dir.glob('**/**/*.csv')]
+    return [Path(c) for c in eval_dir.glob('**/**/**/*.csv')]
+
+def get_ckpt(models_dir, dir_name):
+    path_to_model = Path(os.path.join(models_dir, dir_name))
+    return next(path_to_model.glob('**/*.ckpt'),None)
+
+def get_csv(models_dir, dir_name):
+    path_to_model = Path(os.path.join(models_dir, dir_name))
+    return next(path_to_model.glob('**/**/**/*.csv'), None)
 
 def main(args):
     INDIVIDUAL_MODEL_RESULTS_FILE = 'individual_model_results.jsonl'
@@ -180,14 +190,16 @@ def main(args):
         
     # Greedy soup -----------------------------------------------------
     if args.greedy_soup:
+
+        results_dir=Path(args.results)
         # Reset greedy soup results file
         if os.path.exists(GREEDY_SOUP_RESULTS_FILE):
             os.remove(GREEDY_SOUP_RESULTS_FILE)
 
         # Reset results directory
         if os.path.exists(args.results):
-            pathlib.Path(args.results).rmdir(recursive=True)
-            os.mkdir(args.results)
+            shutil.rmtree(Path(args.results))
+        os.mkdir(args.results)
 
         # This series of functions reads the output JSON into a Pandas DataFrame
         # but it reads it in a different format than what it wrote the dict in.
@@ -205,14 +217,16 @@ def main(args):
         individual_model_val_accs = sorted(individual_model_val_accs.items(), key=operator.itemgetter(1))
         # Start the soup by using the first ingredient.
         greedy_soup_ingredients = [sorted_models[0]]
-        greedy_soup_params = torch.load(os.path.join(args.model_location, f'{sorted_models[0]}/model.ckpt'))['state_dict']
-        best_val_acc_so_far = individual_model_val_accs[0][1]
+        path_to_ckpt = get_ckpt(models_dir, sorted_models[0])
+        greedy_soup_params = torch.load(path_to_ckpt)['state_dict']
+        best_val_loss_so_far = individual_model_val_accs[0][1]
         #held_out_val_set = ImageNet2p(preprocess, args.data_location, args.batch_size, args.workers)
 
         for i in range(1, NUM_MODELS):
             print(f'Testing model {i} of {NUM_MODELS}')
 
-            new_ingredient_params = torch.load(os.path.join(args.model_location, f'{sorted_models[i]}/model.ckpt'))['state_dict']
+            path_to_ckpt = get_ckpt(models_dir, sorted_models[i])
+            new_ingredient_params = torch.load(path_to_ckpt)['state_dict']
             num_ingredients = len(greedy_soup_ingredients)
             potential_greedy_soup_params = {
                 k : greedy_soup_params[k].clone() * (num_ingredients / (num_ingredients + 1.)) +
@@ -220,9 +234,29 @@ def main(args):
                 for k in new_ingredient_params
             }
 
-            torch.save(potential_greedy_soup_params, os.path.join(args.results_location, "greedy_soup_temp.pt"))
-            os.system(f"CUDA_VISIBLE_DEVICES=0 python3 ./latent-diffusion/main.py -r {args.results + 'greedy_soup_temp.pt'} -l {args.results} -b {args.config}")
-            exit()
+            model_str = f"model{i}"
+            # Evaluate new model
+            torch.save(potential_greedy_soup_params, os.path.join(args.results, "greedy_soup_temp.pt"))
+            path_to_temp_results = f"{args.results}/greedy_soup_temp.pt"
+            os.system(f"CUDA_VISIBLE_DEVICES=0 python3 ./latent-diffusion/main.py -r {path_to_temp_results} -l {args.results + '/' + model_str} -b {args.config}")
+
+            # Read in new loss value
+            result_metrics = pd.read_csv(get_csv(results_dir, model_str))
+                #os.path.join(args.results, f"{model}testtube/version_0/metrics.csv"))
+            held_out_loss = result_metrics['val/loss'][0]
+
+            # 
+            print(f'Potential greedy soup val acc {held_out_loss}, best so far {best_val_loss_so_far}.')
+            if held_out_loss < best_val_loss_so_far:
+                greedy_soup_ingredients.append(sorted_models[i])
+                best_val_loss_so_far = held_out_loss
+                greedy_soup_params = potential_greedy_soup_params
+                print(f'Adding to soup. New soup is {greedy_soup_ingredients}')
+
+        torch.save(greedy_soup_params, os.path.join(args.results, "greedy_soup_model.pt"))
+        os.system(f"CUDA_VISIBLE_DEVICES=0 python3 ./latent-diffusion/main.py -r {args.results + 'greedy_soup_model.pt'} -l {args.results} -b {args.config}")
+        
+                
             
 
         

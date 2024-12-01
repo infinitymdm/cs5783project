@@ -20,6 +20,8 @@ import pandas as pd
 
 import shutil
 
+import hashlib
+
 #from ..."model-soups" import utils as msutils
 
 import importlib
@@ -220,13 +222,24 @@ def main(args):
         path_to_ckpt = get_ckpt(models_dir, sorted_models[0])
         greedy_soup_params = torch.load(path_to_ckpt)['state_dict']
         best_val_loss_so_far = individual_model_val_accs[0][1]
+        print(f"TESTING: {sorted_models}")
         #held_out_val_set = ImageNet2p(preprocess, args.data_location, args.batch_size, args.workers)
 
+        last_state_dict_str = ""
+        
         for i in range(1, NUM_MODELS):
             print(f'Testing model {i} of {NUM_MODELS}')
 
             path_to_ckpt = get_ckpt(models_dir, sorted_models[i])
+            print(f"TESTING: {path_to_ckpt}, sorted_models[i]: {sorted_models[i]}")
             new_ingredient_params = torch.load(path_to_ckpt)['state_dict']
+            print(f"TESTING: state_dict hash {hash(str(new_ingredient_params))}")
+            new_state_dict_str = str(new_ingredient_params)
+            if (new_state_dict_str == last_state_dict_str):
+                print("TESTING: They're equal! NOOOOOOO!")
+                exit()
+            last_state_dict_str = new_state_dict_str
+            
             num_ingredients = len(greedy_soup_ingredients)
             potential_greedy_soup_params = {
                 k : greedy_soup_params[k].clone() * (num_ingredients / (num_ingredients + 1.)) +
@@ -256,14 +269,7 @@ def main(args):
         torch.save(greedy_soup_params, os.path.join(args.results, "greedy_soup_model.pt"))
         os.system(f"CUDA_VISIBLE_DEVICES=0 python3 ./latent-diffusion/main.py -r {args.results + 'greedy_soup_model.pt'} -l {args.results} -b {args.config}")
         
-                
-            
-
         
-        
-
-    
-    
     
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
-#!/bin/bash
+#! /usr/bin/env bash
+
 # Run this script from the main repo directory.
 REPO_DIR="$(pwd)"
 CKPT_LOCATION=/opt/ckpts

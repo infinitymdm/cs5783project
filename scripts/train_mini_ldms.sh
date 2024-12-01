@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 
-for i in {1..10}
+for i in {1..2}
 do
     echo "Training model $i ..."
     rm ~/.cache/autoencoders/data/*/.ready

@@ -33,6 +33,8 @@
 
 = Introduction
 
+
+
 == Paper Overview
 
 = Background
@@ -120,6 +122,12 @@ network. Additionally, creating a model soup does nothing to mitigate the limita
 the LDM structure: sequential denoising remains much slower for inference than other model
 architectures.
 
+Another limitation is that the noisy loss graphs that diffusion models generate makes it
+impossible to sort models based on a metric. Sorting of models based on performance is necessary to
+begin the greedy soup algorithm. Since the loss graph is noisy, adding a model to the soup is not
+gauranteed to increase performance. Thus, though greedy soups were attempted, uniform souping was
+the method of choice.
+
 == Societal Impact
 Much has been discussed on the societal impact of generative machine learning models. Models
 capable of generating images can be used for artistic purposes just as easily as they can be
@@ -128,6 +136,11 @@ such tasks, an interested party with sufficient computational resources could ap
 to societal benefit or detriment. The model soups approach does nothing to address these concerns.
 
 = Results
+
+== Uniform Soup Diffusion Models
+Each individual model was evaluated on the same subset of ImageNet's validation set. Surprisingly,
+each model produced the exact same loss on the validation subset. We checked the weights and biases
+of each of the networks and there was enough variation between each networks weights and biases that 
 
 == Future Work
 There are many possible applications of the model soups approach that remain unexplored in this

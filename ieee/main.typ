@@ -33,11 +33,26 @@
 
 = Introduction
 
-
-
 == Paper Overview
 
 = Background
+
+== Related Works
+
+In recent years, generative models for image synthesis have become a popular topic of research.
+Prior to the publication of @ldm, denoising diffusion probabilistic models @ho2020denoising
+provided state-of-the-art image synthesis quality, albeit with much higher training times. Other
+competitors in the space included generative adversarial networks (GANs) such as @brock2018large,
+variational autoencoders (VAEs) as in @child2020very, and autoregressive models such as
+@chen2020generative
+
+
+Since the publication of @ldm, incredible advances in the field of noise-to-data generation. In
+@esser2024scaling, Esser et. al. apply rectified flow models for improved text-to-image synthesis.
+Their approach results in improved sampling time by reducing the number of steps required to
+generate a sample, while maintaining the perceived quality of diffusion models. Both @ldm and
+@esser2024scaling are improvements on the denoising diffusion probabilistic models introduced in
+@ho2020denoising.
 
 == Latent Diffusion
 Latent Diffusion, as described in @ldm, differs from prior state-of-the-art diffusion models by
@@ -75,27 +90,15 @@ were performed on an AMD Radeon 6900 XT.
 
 Note that our results vary slightly from the original experiment. We suspect, but cannot confirm,
 that this is due to differences in the low-level hardware and software used to compute the results.
+It is also possible that the observed differences are due to updates to the dataset since @ldm.
+
 
 = Methods
-Due to limited computational resources, we used miniaturized latent diffusion models ("mini-LDMs")
-with a fraction of the usual parameter count. These mini-LDMs are based on the `cin-ldm-vq-f8.yaml`
-configuration provided in @ldm. Additionally, training is limited to a random selection of 10,000
-images from the ImageNet dataset. Each model draws a new random selection of images from the
-dataset.
 
-There is one huge advantage to this approach: it reduces the necessary computational resources down
-to a level that is within our grasp. However, it comes with several major disadvantages. Since each
-model has to learn its own latent representation of the dataset, and each model is trained on a
-new random subsample of the ImageNet dataset, no single model will learn a well-rounded latent
-representation. This is demonstrated in our unconditional image generation testing in INSERT
-SECTION HERE. In addition, since we only train with a single pass through the data, our models are
-likely to be poorly tuned. As such, we expect our results to demonstrate a proof of concept rather
-than a major advancement in the state of the art.
-
-All training was performed on a Radeon RX 6900 XT using the ROCm software stack for just-in-time
-translation of CUDA code.
 
 == Training Mini-LDM Models
+
+
 
 == Mini-LDM Soup Recipes
 
@@ -108,6 +111,8 @@ The greedy soup recipe is simply a greedy algorithm: for each model in the ensem
 parameters into the soup if and only if performance would be improved by doing so. Since each step
 requires evaluating the performance of the potential new soup, this recipe takes much more time to
 run.
+
+==== TODO: Talk about how we couldn't do greedy soup because we can't sort by loss
 
 = Limitations and Societal Impact
 
@@ -150,4 +155,4 @@ space to explore by training the remaining parameters of the model. Another poss
 would be finely training many models on small subsets of the dataset, instead of the coarse
 training we do here.
 
-== Conclusion
+= Conclusion

@@ -32,10 +32,14 @@
 )
 
 = Introduction
-
-
+The goal of this project was to apply the model-soups method to Latent Diffusion models. The purpose
+in using this method on Diffusion models was to explore the possibility that low quality latent diffusion
+models were already distributed around the local error minimum, quickly and easily improving the latent
+space when their paramaters are averaged together.
 
 == Paper Overview
+
+
 
 = Background
 
@@ -44,7 +48,7 @@ Latent Diffusion, as described in @ldm, differs from prior state-of-the-art diff
 performing denoising operations in latent space rather than pixel space. This significantly reduces
 the computational resources required for training when compared to diffusion models which operate
 on pixel space representations. At the time of publication, latent diffusion models (LDMs) offered
-state-of-the-art image inpainting and provided competitive capabilities for unconditional image
+state-of-the-art image inpainting and provided comp\etitive capabilities for unconditional image
 generation, generative upscaling, and scene synthesis from input images with labeled regions. In
 this paper we test only the image generation capabilities of LDMs.
 
@@ -62,6 +66,12 @@ a "Uniform Soup" recipe that simply averages the parameters of all models, and a
 recipe which uses a greedy algorithm to include only those models which improve the recipe's
 performance against a test dataset. The authors of @model-soups apply this to transformer-
 based models. In this paper, we instead evaluate their approach with LDMs.
+
+The justification for doing this is that each each model used in the algorithms in @model-soups was
+that each model was fine-tuned from a base model such as ViT or ALIGN. Each model is fine-tuned
+with varying hyperparameters such as learning rate, batch_size, etc. This produces a wide range of models
+that all share the same "optimization trajectory". In theory, this places the models in a distribution
+around or towards a local minimum.
 
 Using their codebase, we duplicated their experiment as shown in @fig-soup-results. Computations
 were performed on an AMD Radeon 6900 XT.
@@ -101,7 +111,7 @@ translation of CUDA code.
 
 === Uniform Soup
 The uniform soup recipe is incredibly simple. It consists of averaging the parameters of all
-models in an ensemble.
+models of a collection of models.
 
 === Greedy Soup
 The greedy soup recipe is simply a greedy algorithm: for each model in the ensemble, average its

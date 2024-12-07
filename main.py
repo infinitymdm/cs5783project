@@ -175,6 +175,7 @@ def main(args):
         #NUM_MODELS = len(model_paths)
         #base_model = torch.load(model_paths[0], map_location="cpu")
         for j, model_path in enumerate(model_paths):
+            print(model_path)
             model_dict = torch.load(model_path, map_location="cpu")["state_dict"]
             #print(model_dict.keys())
 

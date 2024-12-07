@@ -32,27 +32,49 @@
 )
 
 = Introduction
+Diffusion models generate meaningful data from random noise through a process of sequential
+denoising. Such models are trained by taking initial data and "noising" it until it resembles
+white noise. The model learns the reverse path: how to denoise a random input until it resembles
+an item from the training dataset. Such models are very large, with millions or billions of
+parameters, and require many GPU-days to train @ho2020denoising.
+
+Latent diffusion models differ from diffusion probabilistic models in that they operate on the
+latent space representation of trained inputs instead of pixel space. This means that, compared to
+diffusion probabilistic models, latent diffusion models can learn a much better understanding of
+the training data with an autoencoder network of the same size. These models still take a long time
+to train, but produce similar results to diffusion probabilistic models with shorter training time
+@ldm.
+
+State-of-the-art models (in image synthesis as well as other tasks) often reduce training time
+through transfer learning @pan2010survey. In this process, a pre-trained model is fine-tuned on a
+particular task through additional training steps @model-soups. However, several other methods have
+been considered for transferring learned capabilities from one model to another. Recent research
+has demonstrated that merging the parameters from an ensemble of finely tuned models can produce
+improved performance on target tasks @model-soups, @matena2021merging. Multiple techniques for
+merging paramaters have been evaluated, including weighted averages @matena2021merging, uniform
+averages, and greedy algorithms @model-soups.
+
+In this paper, we apply a uniform average merging strategy to a finely-tuned ensemble of latent
+diffusion models.
 
 == Paper Overview
 
 = Background
 
 == Related Works
-
 In recent years, generative models for image synthesis have become a popular topic of research.
 Prior to the publication of @ldm, denoising diffusion probabilistic models @ho2020denoising
 provided state-of-the-art image synthesis quality, albeit with much higher training times. Other
 competitors in the space included generative adversarial networks (GANs) such as @brock2018large,
 variational autoencoders (VAEs) as in @child2020very, and autoregressive models such as
-@chen2020generative
+@chen2020generative.
 
-
-Since the publication of @ldm, incredible advances in the field of noise-to-data generation. In
-@esser2024scaling, Esser et. al. apply rectified flow models for improved text-to-image synthesis.
-Their approach results in improved sampling time by reducing the number of steps required to
-generate a sample, while maintaining the perceived quality of diffusion models. Both @ldm and
-@esser2024scaling are improvements on the denoising diffusion probabilistic models introduced in
-@ho2020denoising.
+Since the publication of @ldm, incredible advances in the field of noise-to-data generation have
+taken place. In @esser2024scaling, Esser et. al. apply rectified flow models for improved
+text-to-image synthesis. Their approach results in improved sampling time by reducing the number
+of steps required to generate a sample, while maintaining the perceived quality of diffusion
+models. Both @ldm and @esser2024scaling are improvements on the denoising diffusion probabilistic
+models introduced in @ho2020denoising.
 
 == Latent Diffusion
 Latent Diffusion, as described in @ldm, differs from prior state-of-the-art diffusion models by
@@ -64,11 +86,15 @@ generation, generative upscaling, and scene synthesis from input images with lab
 this paper we test only the image generation capabilities of LDMs.
 
 Like established diffusion architectures, the key operation of LDMs is the diffusion process. In
-this process, outputs are generated from conditioned noise through many sequential denoising
-steps. However, LDMs make two key structural changes to the traditional diffusion formula. First,
-in order to operate on latent representations, LDMs introduce pretrained autoencoder networks to
-capture key parameters of training data. Second, LDMs introduce cross-attention layers which enable
-generative sampling from the learned latent space.
+this process, outputs are generated from input noise through many sequential denoising steps.
+However, LDMs make two key structural changes to the diffusion probabilistic model formula. First,
+instead of training on pixel space, the autoencoder network is trained on the latent space. This
+allows LDMs to capture relevant information while ignoring perceptually irrelevant high-frequency
+components that must be trained when operating in pixel space. Second, LDMs introduce
+cross-attention layers which enable generative sampling from the learned latent space.
+
+In this paper, we will base our methods on the `cin256` model provided in @ldm. This
+class-conditional model is trained on the ImageNet dataset @deng2009imagenet. 
 
 == Model Soups
 As described in @model-soups, combining parameters from an ensemble of finely-tuned models can
@@ -90,17 +116,25 @@ were performed on an AMD Radeon 6900 XT.
 
 Note that our results vary slightly from the original experiment. We suspect, but cannot confirm,
 that this is due to differences in the low-level hardware and software used to compute the results.
-It is also possible that the observed differences are due to updates to the dataset since @ldm.
-
+It is also possible that the observed differences are due to updates to the dataset since the
+publication of @model-soups.
 
 = Methods
+The goal of this paper is to demonstrate the effects of applying the model soups approach to an
+ensemble of finely-tuned diffusion models. We begin by tuning an ensemble of models based on the
+`cin256` model provided in @ldm. Each model starts with identical parameters, but is trained for 1
+additional epoch through a subset of 50000 training images with a unique combination of learn rate
+and batch size. This results in 9 finely-tuned models that we combine using model soups methods 
+described below and detailed in @model-soups.
+
+== The Base Model: `cin256`
+The `cin256` model 
+
+== Fine-Tuning LDM Models
 
 
-== Training Mini-LDM Models
+== LDM Soup Recipes
 
-
-
-== Mini-LDM Soup Recipes
 
 === Uniform Soup
 The uniform soup recipe is incredibly simple. It consists of averaging the parameters of all
@@ -113,32 +147,6 @@ requires evaluating the performance of the potential new soup, this recipe takes
 run.
 
 ==== TODO: Talk about how we couldn't do greedy soup because we can't sort by loss
-
-= Limitations and Societal Impact
-
-== Limitations
-While the model soups approach is capable of producing improved models, it requires ensemble
-training of many models in order to do so. This drastically increases the computational cost of
-training when compared to finely tuning a single model. Applying this method to LDMs mitigates this
-drawback to some extent, as the parameter count is reduced through the use of latent
-representations, but the time and computational resources involved in training will likely remain
-much greater than finely training a single probabilistic diffusion model or generative adversarial
-network. Additionally, creating a model soup does nothing to mitigate the limitations inherent to
-the LDM structure: sequential denoising remains much slower for inference than other model
-architectures.
-
-Another limitation is that the noisy loss graphs that diffusion models generate makes it
-impossible to sort models based on a metric. Sorting of models based on performance is necessary to
-begin the greedy soup algorithm. Since the loss graph is noisy, adding a model to the soup is not
-gauranteed to increase performance. Thus, though greedy soups were attempted, uniform souping was
-the method of choice.
-
-== Societal Impact
-Much has been discussed on the societal impact of generative machine learning models. Models
-capable of generating images can be used for artistic purposes just as easily as they can be
-applied to manipulate people with misinformation. While our mini-LDMs are not likely capable of
-such tasks, an interested party with sufficient computational resources could apply this method
-to societal benefit or detriment. The model soups approach does nothing to address these concerns.
 
 = Results
 
@@ -156,3 +164,29 @@ would be finely training many models on small subsets of the dataset, instead of
 training we do here.
 
 = Conclusion
+
+== Limitations and Societal Impact
+
+=== Limitations
+While the model soups approach is capable of producing improved models, it requires ensemble
+training of many models in order to do so. This drastically increases the computational cost of
+training when compared to finely tuning a single model. Applying this method to LDMs mitigates this
+drawback to some extent, as the parameter count is reduced through the use of latent
+representations, but the time and computational resources involved in training will likely remain
+much greater than finely training a single probabilistic diffusion model or generative adversarial
+network. Additionally, creating a model soup does nothing to mitigate the limitations inherent to
+the LDM structure: sequential denoising remains much slower for inference than other model
+architectures.
+
+Another limitation is that the noisy loss graphs that diffusion models generate makes it
+impossible to sort models based on a metric. Sorting of models based on performance is necessary to
+begin the greedy soup algorithm. Since the loss graph is noisy, adding a model to the soup is not
+gauranteed to increase performance. Thus, though greedy soups were attempted, uniform souping was
+the method of choice.
+
+=== Societal Impact
+Much has been discussed on the societal impact of generative machine learning models. Models
+capable of generating images can be used for artistic purposes just as easily as they can be
+applied to manipulate people with misinformation. While our mini-LDMs are not likely capable of
+such tasks, an interested party with sufficient computational resources could apply this method
+to societal benefit or detriment. The model soups approach does nothing to address these concerns.

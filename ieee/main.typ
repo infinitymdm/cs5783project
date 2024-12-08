@@ -6,10 +6,10 @@
     Recent advances in generative machine learning models have made it easier than ever to access
     powerful image manipulation tools such as text-to-image generation, generative upscaling, and
     damaged image inpainting. These tools are powered by diffusion models which generate novel
-    outputs through a process of sequentially "denoising" inputs. In this paper, we demonstrate that
-    it is possible to improve latent diffusion models by applying the Model Soups approach: training
-    a large ensemble of models and combining their parameters. Our proof-of-concept uses cut-down
-    LDMs and is trained using the ImageNet dataset.
+    outputs through a process of sequentially "denoising" inputs. In this paper, we experiment with
+    the possibility of finding improved latent diffusion models by applying the Model Soups
+    approach: fine-tuning a large ensemble of models and combining their parameters. Our
+    proof-of-concept uses class-conditional LDMs and is trained using the ImageNet dataset.
   ],
   authors: (
     (
@@ -42,8 +42,8 @@ Latent diffusion models differ from diffusion probabilistic models in that they 
 latent space representation of trained inputs instead of pixel space. This means that, compared to
 diffusion probabilistic models, latent diffusion models can learn a much better understanding of
 the training data with an autoencoder network of the same size. These models still take a long time
-to train, but produce similar results to diffusion probabilistic models with shorter training time
-@ldm.
+to train, but produce perceptually similar results to diffusion probabilistic models within less
+training time @ldm.
 
 State-of-the-art models (in image synthesis as well as other tasks) often reduce training time
 through transfer learning @pan2010survey. In this process, a pre-trained model is fine-tuned on a
@@ -54,22 +54,24 @@ improved performance on target tasks @model-soups, @matena2021merging. Multiple 
 merging paramaters have been evaluated, including weighted averages @matena2021merging, uniform
 averages, and greedy algorithms @model-soups.
 
-In this paper, we apply a uniform average merging strategy to a finely-tuned ensemble of latent
-diffusion models.
-
 == Paper Overview
+In this paper, we apply a uniform average merging strategy to a finely-tuned ensemble of latent
+diffusion models and qualitatively evaluate the performance of the resulting model. @background
+provides background information on recent advances in diffusion models and the transfer learning
+methods applied in this paper. @methods gives detailed descriptions of the methods applied to
+create and fine-tune an ensemble of models that are in theory distributed around the same local
+minimum, as well as the recipes used to combine the parameters of those models. @results reviews
+the experimental results using qualitative and quantitative measures. Finally, @conclusion presents
+concluding remarks, ethical considerations, and suggestions for future work.
 
-
-
-= Background
+= Background <background>
 
 == Related Works
 In recent years, generative models for image synthesis have become a popular topic of research.
 Prior to the publication of @ldm, denoising diffusion probabilistic models @ho2020denoising
 provided state-of-the-art image synthesis quality, albeit with much higher training times. Other
-competitors in the space included generative adversarial networks (GANs) such as @brock2018large,
-variational autoencoders (VAEs) as in @child2020very, and autoregressive models such as
-@chen2020generative.
+competitors in the space included generative adversarial networks (GANs) @brock2018large,
+variational autoencoders (VAEs) @child2020very, and autoregressive models @chen2020generative.
 
 Since the publication of @ldm, incredible advances in the field of noise-to-data generation have
 taken place. In @esser2024scaling, Esser et. al. apply rectified flow models for improved
@@ -87,16 +89,39 @@ state-of-the-art image inpainting and provided comp\etitive capabilities for unc
 generation, generative upscaling, and scene synthesis from input images with labeled regions. In
 this paper we test only the image generation capabilities of LDMs.
 
+#figure(
+    image("ldm_diagram.png", width: 100%),
+    caption: [
+        The diagram above (from @ldm) shows the diffusion and denoising process for LDMs. Note that
+        the entire diffusion process takes place in latent space, with conditioning provided by a
+        variety of mechanisms.
+    ]
+)
+
 Like established diffusion architectures, the key operation of LDMs is the diffusion process. In
 this process, outputs are generated from input noise through many sequential denoising steps.
 However, LDMs make two key structural changes to the diffusion probabilistic model formula. First,
 instead of training on pixel space, the autoencoder network is trained on the latent space. This
 allows LDMs to capture relevant information while ignoring perceptually irrelevant high-frequency
 components that must be trained when operating in pixel space. Second, LDMs introduce
-cross-attention layers which enable generative sampling from the learned latent space.
+cross-attention layers into the UNet which enable unconditional generative sampling from the
+learned latent space @ldm.
 
 In this paper, we will base our methods on the `cin256` model provided in @ldm. This
-class-conditional model is trained on the ImageNet dataset @deng2009imagenet. 
+class-conditional model is trained on the ImageNet dataset @deng2009imagenet. A few samples
+generated by this model are displayed in @fig-cin256-samples.
+
+#figure(
+    grid(
+        columns: 2,
+        rows: 2,
+        image("cin256/sample_-00001.png"),
+        image("cin256/sample_000000.png"),
+        image("cin256/sample_000001.png"),
+        image("cin256/sample_000002.png"),
+    ),
+    caption: [4 class-conditioned samples from the pretrained `cin256` model.]
+) <fig-cin256-samples>
 
 == Model Soups
 As described in @model-soups, combining parameters from an ensemble of finely-tuned models can
@@ -107,10 +132,10 @@ performance against a test dataset. The authors of @model-soups apply this to tr
 based models. In this paper, we instead evaluate their approach with LDMs.
 
 The justification for doing this is that each each model used in the algorithms in @model-soups was
-that each model was fine-tuned from a base model such as ViT or ALIGN. Each model is fine-tuned
-with varying hyperparameters such as learning rate, batch_size, etc. This produces a wide range of models
-that all share the same "optimization trajectory". In theory, this places the models in a distribution
-around or towards a local minimum.
+that each model was fine-tuned from a base model such as ViT @dosovitskiy2020vit or ALIGN
+@jia2021align. Each model is fine-tuned with varying hyperparameters such as learning rate,
+batch_size, etc. This produces a wide range of models that all share the same "optimization
+trajectory". In theory, this places the models in a distribution near a local minimum.
 
 Using their codebase, we duplicated their experiment as shown in @fig-soup-results. Computations
 were performed on an AMD Radeon 6900 XT.
@@ -127,19 +152,25 @@ that this is due to differences in the low-level hardware and software used to c
 It is also possible that the observed differences are due to updates to the dataset since the
 publication of @model-soups.
 
-= Methods
+= Methods <methods>
 The goal of this paper is to demonstrate the effects of applying the model soups approach to an
 ensemble of finely-tuned diffusion models. We begin by tuning an ensemble of models based on the
 `cin256` model provided in @ldm. Each model starts with identical parameters, but is trained for 1
-additional epoch through a subset of 50000 training images with a unique combination of learn rate
+additional epoch through a subset of 50,000 training images with a unique combination of learn rate
 and batch size. This results in 9 finely-tuned models that we combine using model soups methods 
 described below and detailed in @model-soups.
 
 == The Base Model: `cin256`
-The `cin256` model 
+The `cin256` model is a latent diffusion model trained for class-conditional image synthesis on the
+full ImageNet dataset. According to @ldm, this model achieves a Fréchet Inception Distance (FID) 
+@heusel2017fid of 7.76 on ImageNet. The model is trained over 971,043 steps on an Nvidia A100 GPU.
 
-== Fine-Tuning LDM Models
-
+== Fine-Tuning LDMs
+To create an ensemble of finely-tuned models, we first drew 50,000 random images from ImageNet to
+use as a training set and another 5,000 to use as a validation set. Then, starting from the
+pretrained base model, we fine-tuned each model by training it on a single pass through the data
+with a unique combination of learn rate and batch size. This produced 9 models fine-tuned with the
+following hyperparameters:
 
 == LDM Soup Recipes
 
@@ -154,9 +185,14 @@ parameters into the soup if and only if performance would be improved by doing s
 requires evaluating the performance of the potential new soup, this recipe takes much more time to
 run.
 
-==== TODO: Talk about how we couldn't do greedy soup because we can't sort by loss
+Unfortunately, because the greedy soup code uses categorical cross-entropy loss as its measure of
+performance, we were unable to produce an improved model using the greedy soup algorithm. This is
+due to the non-convergent loss behavior of latent diffusion model training: from epoch to epoch, 
+the loss does not necessarily improve. Instead, the FID of the model improves. Within the time
+constraints of this project, we were unable modify the algorithm to use FID as a performance
+measure instead of loss.
 
-= Results
+= Results <results>
 
 == Uniform Soup Diffusion Models
 Each individual model was evaluated on the same subset of ImageNet's validation set. Surprisingly,
@@ -171,7 +207,7 @@ space to explore by training the remaining parameters of the model. Another poss
 would be finely training many models on small subsets of the dataset, instead of the coarse
 training we do here.
 
-= Conclusion
+= Conclusion <conclusion>
 
 == Limitations and Societal Impact
 

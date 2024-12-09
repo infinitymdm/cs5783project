@@ -342,6 +342,16 @@ create it. While the samples appear to be perceptually identical, they have diff
 digests. Therefore we assume that at least some of their content differs, though it may not be
 easily discernible by eye.
 
+When we tried to sample the original base model, cin256, good samples were generated.
+When we tried to sample our fine-tuned models, bad samples, all of which were the squares pictured above
+were generated. This leads us to believe there was a problem in the training process. This could also
+explain the bad loss results, since each image is always the same square, the loss always results in being
+roughly the same value.
+
+Why this is occuring is unclear. When we cloned the latent-diffusion repository, there were library changes
+we made in order to get this to work. It's possible that training with the latest versions of these
+libraries changed the training process.
+
 As with the fine-tuned models, the uniform model was evaluated against the same ImageNet validation
 subset. The loss is reported in @fig-losses
 
@@ -355,25 +365,6 @@ smooth curve.
 It is possible that using an alternative performance metric, such as FID, would allow us to apply
 the greedy soup recipe to our fine-tuned LDMs. However, within the time constraints of this project
 we were unable modify the algorithm to use FID as a performance measure instead of loss.
-
-= Results <results>
-
-== Uniform Models
-Each individual model was evaluated on the same subset of ImageNet's validation set. Surprisingly,
-each model produced the exact same loss on the validation subset. We checked the weights and biases
-
-of each of the networks and there was enough variation between each networks weights and biases that
-neural networks were not the same.
-
-When we tried to sample the original base model, cin256, good samples were generated.
-When we tried to sample our fine-tuned models, bad samples, all of which were the squares pictured above
-were generated. This leads us to believe there was a problem in the training process. This could also
-explain the bad loss results, since each image is always the same square, the loss always results in being
-roughly the same value.
-
-Why this is occuring is unclear. When we cloned the latent-diffusion repository, there were library changes
-we made in order to get this to work. It's possible that training with the latest versions of these
-library
 
 = Conclusion <conclusion>
 Due to issues encountered during fine-tuning, we are unable to definitively determine whether the

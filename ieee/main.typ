@@ -353,7 +353,7 @@ we made in order to get this to work. It's possible that training with the lates
 libraries changed the training process.
 
 As with the fine-tuned models, the uniform model was evaluated against the same ImageNet validation
-subset. The loss is reported in @fig-losses
+subset. The loss is reported in @fig-losses.
 
 == Greedy LDM Soup
 Unfortunately, because the greedy soup code uses categorical cross-entropy loss as its measure of

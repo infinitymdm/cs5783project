@@ -403,10 +403,10 @@ best of our knowledge incapable of such tasks, an interested party with sufficie
 resources could apply this method to societal benefit or detriment. The model soups approach does
 nothing to address these concerns, though it also does little to arm bad actors.
 
-== Future Work
+#block(breakable: false)[== Future Work
 There are many possible applications of the model soups approach that remain unexplored in this
 paper. It is possible that we would have seen a greater improvement, for example, if we had frozen
 the autoencoder parameters from the `cin256` base model, thus providing a highly accurate latent
 space to explore by training the remaining parameters of the model. Another possible avenue of
 exploration is applying alternate parameter merging strategies, such as the Fisher-weighted
-averaging strategy proposed in @matena2021merging.
+averaging strategy proposed in @matena2021merging.]

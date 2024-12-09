@@ -342,6 +342,16 @@ create it. While the samples appear to be perceptually identical, they have diff
 digests. Therefore we assume that at least some of their content differs, though it may not be
 easily discernible by eye.
 
+When we tried to sample the original base model, cin256, good samples were generated.
+When we tried to sample our fine-tuned models, bad samples, all of which were the squares pictured above
+were generated. This leads us to believe there was a problem in the training process. This could also
+explain the bad loss results, since each image is always the same square, the loss always results in being
+roughly the same value.
+
+Why this is occuring is unclear. When we cloned the latent-diffusion repository, there were library changes
+we made in order to get this to work. It's possible that training with the latest versions of these
+libraries changed the training process.
+
 As with the fine-tuned models, the uniform model was evaluated against the same ImageNet validation
 subset. The loss is reported in @fig-losses
 

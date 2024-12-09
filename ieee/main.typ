@@ -129,17 +129,26 @@ produce better results than any of the individual models. The authors present tw
 "Uniform Soup" recipe that simply averages the parameters of all models, and a "Greedy Soup" recipe
 which uses a greedy algorithm to include only those models which improve the recipe's performance
 against a test dataset. See @methods for details. The authors of @model-soups apply both of these
-parameter merging strategies to Vision Transformer (ViT) models. In this paper, we instead evaluate
-the effectiveness of this approach with LDMs.
+parameter merging strategies to Vision Transformer (ViT) models and ALIGN @jia2021align.
 
-The justification for doing this is that each each model used in the algorithms in @model-soups was
-that each model was fine-tuned from a base model such as ViT @dosovitskiy2020vit or ALIGN
-@jia2021align. Each model is fine-tuned with varying hyperparameters such as learning rate,
-batch_size, etc. This produces a wide range of models that all share the same "optimization
-trajectory". In theory, this places the models in a distribution near a local minimum.
+The basic approach presented in @model-soups is as follows:
+1. #[Starting with a well-trained "base" model, perform a hyperparameter sweep (over e.g. batch
+size, learn rate, number of epochs, weight decay, dropout, etc.) to produce an ensemble of new
+model configurations.]
+2. #[For each configuration, duplicate the base model and fine-tune by training with the new model
+configuration. Save the resulting parameters of each fine-tuned model.]
+3. #[Combine the parameters of all fine-tuned models using either the uniform soup recipe or the
+greedy soup recipe.]
+4. Evaluate the performance of the resulting "soup" model.
 
-Using their codebase, we duplicated their experiment as shown in @fig-soup-results. Computations
-were performed on an AMD Radeon 6900 XT.
+In theory, Step 2 produces a wide range of models that all share the same "optimization
+trajectory". This places the models in a distribution near a local minimum in the error
+hypersurface. Combining the parameters of these tuned models in Step 3 moves the resulting model
+further along the optimization trajectory in a process similar to (but notably distinct from)
+stochastic gradient descent.
+
+Using the codebase provided, we duplicated the experiment from @model-soups. The results are shown
+in @fig-soup-results. Computations were performed on an AMD Radeon 6900 XT.
 
 #figure(
     image("soups.png"),
@@ -151,8 +160,9 @@ were performed on an AMD Radeon 6900 XT.
 
 Note that our results vary slightly from the original experiment. We suspect, but have been unable
 to verify, that this is due to differences in the low-level hardware and software used to compute
-the results. It is also possible that the observed differences are due to updates to the dataset
-since the publication of @model-soups.
+the results; the authors used an Nvidia A100 with the CUDA software stack, while we used an AMD
+Radeon 6900 XT with the ROCm software stack. It is also possible that the observed differences are
+due to updates to the dataset since the publication of @model-soups.
 
 = Methods <methods>
 The goal of this paper is to demonstrate the effects of applying the model soups approach to an
@@ -168,56 +178,35 @@ full ImageNet dataset. According to @ldm, this model achieves a Fréchet Incepti
 @heusel2017fid of 7.76 on ImageNet. The model is trained over 4,279,397 training steps on an Nvidia
 A100 GPU. Several class-conditioned samples from this model are displayed in @fig-cin256-samples.
 
+== Data Preparation
+Due to time constraints, we elected to use a small subset of the ImageNet dataset for training.
+we randomly sampled 50,000 images from the ImageNet training set to use as training data for our
+experiments and 5,000 images from the ImageNet validation set to use as validation data.
+
 == Fine-Tuning LDMs
 To create an ensemble of finely-tuned models, we first drew 50,000 random images from ImageNet to
 use as a training set and another 5,000 to use as a validation set. Then, starting from the
 pretrained base model, we fine-tuned each model by training it on a single epoch through the data
-with a unique combination of learn rate and batch size. This produced 9 models fine-tuned with the
-hyperparameter pairs shown in @fig-hyperparams.
+with a unique combination of learn rate and batch size. This produces 9 models fine-tuned with the
+hyperparameter pairs shown in @fig-hyperparams. Each fine-tuned model is then evaluated against a
+validation dataset and its loss is recorded.
 
 #figure(
     table(
         columns: 3,
-        table.header([Model ID], [Learn Rate], [Batch Size]),
-        [ldm1], [1e-6], [16],
-        [ldm2], [1e-6], [32],
-        [ldm3], [1e-6], [64],
-        [ldm4], [2e-6], [16],
+        table.header([*Model ID*], [*Learn Rate*], [*Batch Size*]),
+        [ldm1], [1e-6], [64],
+        [ldm2], [2e-6], [64],
+        [ldm3], [3e-6], [64],
+        [ldm4], [1e-6], [32],
         [ldm5], [2e-6], [32],
-        [ldm6], [2e-6], [64],
-        [ldm7], [3e-6], [16],
-        [ldm8], [3e-6], [32],
-        [ldm9], [3e-6], [64]
+        [ldm6], [3e-6], [32],
+        [ldm7], [1e-6], [16],
+        [ldm8], [2e-6], [16],
+        [ldm9], [3e-6], [16]
     ),
     caption: [Hyperparameters used to fine-tune LDMs]
 ) <fig-hyperparams>
-
-After training, we sampled the fine-tuned models to evaluate their performance. Several generated
-samples are displayed in @fig-ldm1-samples. Based on the results we suspect that there was a
-problem in the training or sampling process that we were unable to identify within the project
-timeline.
-
-#figure(
-    grid(
-        columns: 2,
-        image("ldm1/sample_-00001.png"),
-        image("ldm1/sample_000000.png"),
-        image("ldm1/sample_000001.png"),
-        image("ldm1/sample_000002.png"),
-    ),
-    caption: [
-        4 class-conditioned samples from the fine-tuned `ldm1` model. Each image is generated
-        using conditioned sampling, where a class label is provided as input to the model.
-    ]
-) <fig-ldm1-samples>
-
-While we were not able to identify the issue within the timeline of this project, we have some
-guesses as to what could have caused this problem. We observed similar sampling behavior with the
-base `cin256` model when we loaded its parameters into a model incorrectly. It is possible that
-something similar is occuring here: either the parameters of the model are being saved to a file
-incorrectly, or they are being loaded from file incorrectly. Unfortunately, we have thus far been
-unable to find such an error in our code; the dictionary of parameters for each fine-tuned model
-appears to share the same shape and structure as the base `cin256` model when printed to console.
 
 == LDM Soup Recipes
 
@@ -246,26 +235,6 @@ models at the same time.
         models in the ensemble.
     ]
 ) <alg-uniform>
-
-We applied the uniform soup recipe to our ensemble of 9 fine-tuned models, producing the resulting
-`uniform` model. Using the same sampling routine that was applied to `cin256`, we sampled the new
-`uniform` model. Several samples are displayed in @fig-uniform-samples.
-
-#figure(
-    grid(
-        columns: 2,
-        image("uniform/sample_-00001.png"),
-        image("uniform/sample_000000.png"),
-        image("uniform/sample_000001.png"),
-        image("uniform/sample_000002.png"),
-    ),
-    caption: [4 class-conditioned samples from the `uniform` model.]
-) <fig-uniform-samples>
-
-Unsurprisingly, the `uniform` model exhibits the same behavior as the finely tuned models used to
-create it. While the samples appear to be perceptually identical, they have different SHA256
-digests. Therefore we assume that at least some of their content differs, though it may not be
-easily discernible by eye.
 
 === Greedy Soup
 The greedy soup recipe is simply a greedy algorithm: for each model in the ensemble, average its
@@ -298,6 +267,85 @@ run. The algorithm is displayed in @alg-greedy.
     ]
 ) <alg-greedy>
 
+= Results <results>
+
+== Fine-Tuned LDMs
+We generated 9 model configurations with the hyperparameters shown in @fig-hyperparams using
+`cin256` as a base model. Each model was trained on a single epoch through the subset of 50,000
+random training images and validated against 5,000 random validation images selected from ImageNet.
+The loss of each model against this validation set is displayed in @fig-losses.
+
+#figure(
+    table(
+        columns: 2,
+        table.header([*Model ID*], [*Validation Loss*]),
+        [cin256],  [1.0004303455352783],
+        [ldm1],    [1.0004701614379883],
+        [ldm2],    [1.0004701614379883],
+        [ldm3],    [1.0004701614379883],
+        [ldm4],    [1.0003424882888794],
+        [ldm5],    [1.0003424882888794],
+        [ldm6],    [1.0003424882888794],
+        [ldm7],    [1.0000524520874023],
+        [ldm8],    [1.0000524520874023],
+        [ldm9],    [1.0000524520874023],
+        [uniform], [1.0004701614379883]
+    ),
+    caption: [Loss of each model against 5,000 validation images]
+) <fig-losses>
+
+After training, we sampled the fine-tuned models to evaluate their performance. Several generated
+samples are displayed in @fig-ldm1-samples. Based on the results we suspect that there was a
+problem in the training or sampling process that we were unable to identify within the project
+timeline.
+
+#figure(
+    grid(
+        columns: 2,
+        image("ldm1/sample_-00001.png"),
+        image("ldm1/sample_000000.png"),
+        image("ldm1/sample_000001.png"),
+        image("ldm1/sample_000002.png"),
+    ),
+    caption: [
+        4 class-conditioned samples from the fine-tuned `ldm1` model. Each image is generated
+        using conditioned sampling, where a class label is provided as input to the model.
+    ]
+) <fig-ldm1-samples>
+
+While we were not able to identify the issue within the timeline of this project, we have some
+guesses as to what could have caused this problem. We observed similar sampling behavior with the
+base `cin256` model when we loaded its parameters into a model incorrectly. It is possible that
+something similar is occuring here: either the parameters of the model are being saved to a file
+incorrectly, or they are being loaded from file incorrectly. Unfortunately, we have thus far been
+unable to find such an error in our code; the dictionary of parameters for each fine-tuned model
+appears to share the same shape and structure as the base `cin256` model when printed to console.
+
+== Uniform LDM Soup
+We applied the uniform soup recipe to our ensemble of 9 fine-tuned models, producing the resulting
+`uniform` model. Using the same sampling routine that was applied to `cin256`, we sampled the new
+`uniform` model. Several samples are displayed in @fig-uniform-samples.
+
+#figure(
+    grid(
+        columns: 2,
+        image("uniform/sample_-00001.png"),
+        image("uniform/sample_000000.png"),
+        image("uniform/sample_000001.png"),
+        image("uniform/sample_000002.png"),
+    ),
+    caption: [4 class-conditioned samples from the `uniform` model.]
+) <fig-uniform-samples>
+
+Unsurprisingly, the `uniform` model exhibits the same behavior as the finely tuned models used to
+create it. While the samples appear to be perceptually identical, they have different SHA256
+digests. Therefore we assume that at least some of their content differs, though it may not be
+easily discernible by eye.
+
+As with the fine-tuned models, the uniform model was evaluated against the same ImageNet validation
+subset. The loss is reported in @fig-losses
+
+== Greedy LDM Soup
 Unfortunately, because the greedy soup code uses categorical cross-entropy loss as its measure of
 performance, we were unable to produce an improved model using the greedy soup algorithm. This is
 due to the non-convergent loss behavior of latent diffusion model training: from epoch to epoch, 
@@ -308,16 +356,17 @@ It is possible that using an alternative performance metric, such as FID, would 
 the greedy soup recipe to our fine-tuned LDMs. However, within the time constraints of this project
 we were unable modify the algorithm to use FID as a performance measure instead of loss.
 
-= Results <results>
-
-== Uniform Models
-Each individual model was evaluated on the same subset of ImageNet's validation set. Surprisingly,
-each model produced the exact same loss on the validation subset. We checked the weights and biases
-of each of the networks and there was enough variation between each networks weights and biases that 
-TODO
-
 = Conclusion <conclusion>
-
+Due to issues encountered during fine-tuning, we are unable to definitively determine whether the
+merging strategies proposed in @model-soups are effective for improving latent diffusion models.
+Because we were unable to produce fine-tuned models that were performing as intended, we are
+uncertain that these models share a similar optimization trajectory. Therefore we are uncertain
+whether either of the soup recipes proposed will produce an improved model. While we hypothesize
+that the model soups approach should result in improved models given good fine-tuned models as a
+starting point, we are unable to experimentally determine whether this is the case. The loss data
+shown in @fig-losses would seem to suggest that the model soups approach does not improve model
+performance, but we do not consider this to be a valid result because the fine-tuned models do not
+produce perceptually valid samples.
 
 == Limitations
 While the model soups approach is capable of producing improved models, it requires ensemble
@@ -333,20 +382,21 @@ architectures.
 Another limitation is that the noisy loss graphs that diffusion models generate makes it
 impossible to sort models based on a metric. Sorting of models based on performance is necessary to
 begin the greedy soup algorithm. Since the loss graph is noisy, adding a model to the soup is not
-gauranteed to increase performance. Thus, though greedy soups were attempted, uniform souping was
-the method of choice. Switching to FID as a performance measure could alleviate this issue.
+guaranteed to increase performance. Thus, though a greedy soup was attempted, uniform soup was
+the recipe of choice. Switching to FID as a performance measure could alleviate this issue.
 
 == Societal Impact
 Much has been discussed on the societal impact of generative machine learning models. Models
 capable of generating images can be used for artistic purposes just as easily as they can be
-applied to manipulate people with misinformation. While our mini-LDMs are not likely capable of
-such tasks, an interested party with sufficient computational resources could apply this method
-to societal benefit or detriment. The model soups approach does nothing to address these concerns.
+applied to manipulate people with misinformation. While the LDMs trained in this paper are to the
+best of our knowledge incapable of such tasks, an interested party with sufficient computational
+resources could apply this method to societal benefit or detriment. The model soups approach does
+nothing to address these concerns, though it also does little to arm bad actors.
 
 == Future Work
 There are many possible applications of the model soups approach that remain unexplored in this
-paper. It is possible that we would have seen a greater improvement, for example, if we had reused
-autoencoder parameters from an existing finely-trained LDM, thus providing a highly accurate latent
-space to explore by training the remaining parameters of the model. Another possible application
-would be finely training many models on small subsets of the dataset, instead of the coarse
-training we do here.
+paper. It is possible that we would have seen a greater improvement, for example, if we had frozen
+the autoencoder parameters from the `cin256` base model, thus providing a highly accurate latent
+space to explore by training the remaining parameters of the model. Another possible avenue of
+exploration is applying alternate parameter merging strategies, such as the Fisher-weighted
+averaging strategy proposed in @matena2021merging.

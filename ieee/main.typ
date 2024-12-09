@@ -10,7 +10,8 @@
     outputs through a process of sequentially "denoising" inputs. In this paper, we experiment with
     the possibility of finding improved latent diffusion models by applying the Model Soups
     approach: fine-tuning a large ensemble of models and combining their parameters. Our
-    proof-of-concept uses class-conditional LDMs and is trained using the ImageNet dataset.
+    proof-of-concept uses class-conditional LDMs and is trained using the ImageNet dataset. All
+    code is publicly available at https://github.com/infinitymdm/cs5783project. 
   ],
   authors: (
     (
